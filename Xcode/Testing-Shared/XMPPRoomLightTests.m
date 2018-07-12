@@ -8,8 +8,11 @@
 
 #import <XCTest/XCTest.h>
 #import "XMPPMockStream.h"
-#import "XMPPRoomLight.h"
-#import "XMPPJID.h"
+
+@interface XMPPRoomLight()
+- (nonnull NSString *)memberListVersion;
+- (nonnull NSString *)configVersion;
+@end
 
 @interface XMPPRoomLightTests : XCTestCase <XMPPRoomLightDelegate>
 
@@ -19,6 +22,13 @@
 @end
 
 @implementation XMPPRoomLightTests
+
+- (void)testInitVersionsShouldBeEmpty {
+	XMPPJID *jid = [XMPPJID jidWithUser:@"user" domain:@"domain.com" resource:@"resource"];
+	XMPPRoomLight *roomLight = [[XMPPRoomLight alloc] initWithJID:jid roomname:@"room"];
+	XCTAssertEqualObjects(roomLight.memberListVersion, @"");
+	XCTAssertEqualObjects(roomLight.configVersion, @"");
+}
 
 - (void)testInitWithJIDAndRoomname {
 	XMPPJID *jid = [XMPPJID jidWithUser:@"user" domain:@"domain.com" resource:@"resource"];
@@ -284,14 +294,15 @@
 	}];
 }
 
-- (void)xmppRoomLight:(XMPPRoomLight *)sender didFetchMembersList:(NSArray *)items {
-	NSXMLElement *user1 = [items firstObject];
-	NSXMLElement *user3 = [items lastObject];
+- (void)xmppRoomLight:(XMPPRoomLight *)sender didFetchMembersList:(XMPPIQ *)iqResult {
+	NSXMLElement *user1 = [[sender knownMembersList] firstObject];
+	NSXMLElement *user3 = [[sender knownMembersList] lastObject];
 	XCTAssertEqualObjects([user1 attributeForName:@"affiliation"].stringValue, @"owner");
 	XCTAssertEqualObjects(user1.stringValue, @"user1@shakespeare.lit");
 	XCTAssertEqualObjects([user3 attributeForName:@"affiliation"].stringValue, @"member");
 	XCTAssertEqualObjects(user3.stringValue, @"user3@shakespeare.lit");
 
+	XCTAssertEqualObjects(sender.memberListVersion, @"123456");
 	[self.delegateResponseExpectation fulfill];
 }
 
@@ -617,6 +628,7 @@
 }
 
 - (void)xmppRoomLight:(XMPPRoomLight *)sender didGetConfiguration:(XMPPIQ *)iqResult{
+	XCTAssertEqualObjects(sender.configVersion, @"123456");
 	[self.delegateResponseExpectation fulfill];
 }
 
@@ -769,6 +781,7 @@
 	NSMutableString *s = [NSMutableString string];
 	[s appendString:@"<iq xmlns='jabber:client' from='testtesttest@muclight.erlang-solutions.com' to='ramabit@erlang-solutions.com/Andress-MacBook-Air' id='config0' type='result'>"];
 	[s appendString:@"	<query xmlns='urn:xmpp:muclight:0#configuration'>"];
+	[s appendString:@"		<version>123456</version>"];
 	[s appendString:@"		<roomname>Roomname</roomname>"];
 	[s appendString:@"		<subject>Subject</subject>"];
 	[s appendString:@"	</query>"];
